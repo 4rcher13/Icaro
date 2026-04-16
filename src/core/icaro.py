@@ -1,12 +1,12 @@
 import time
 import logging
 
-from src.config.settings import WAKE_WORD
-from src.core.memory_manager import MemoryManager
-from src.services.audio_service import AudioService
-from src.services.action_service import ActionService
-from src.services.ai_service import AIService
-from src.core.command_processor import CommandProcessor
+from ..config.settings import WAKE_WORD
+from .memory_manager import MemoryManager
+from .command_processor import CommandProcessor
+from ..services.audio_service import AudioService
+from ..services.action_service import ActionService
+from ..services.ai_service import AIService
 
 logger = logging.getLogger(__name__)
 

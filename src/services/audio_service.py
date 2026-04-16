@@ -3,7 +3,7 @@ import speech_recognition as sr
 import time
 import logging
 
-from src.config.settings import VOICE_RATE, TIMEOUT_SILENCIO, LIMITE_SEGUNDOS
+from ..config.settings import VOICE_RATE, TIMEOUT_SILENCIO, LIMITE_SEGUNDOS
 
 logger = logging.getLogger(__name__)
 
@@ -15,17 +15,26 @@ class AudioService:
         self.recognizer = None
         self.microphone = microphone
         self.ultima_interaccion = time.time()
+        self._microphone_ready = False
         
-        # Iniciar micrófono de forma segura
         try:
             self.recognizer = sr.Recognizer()
             if self.microphone is None:
                 self.microphone = sr.Microphone()
-            # Ajuste dinámico de ruido inicial
+        except Exception as e:
+            logger.error(f"Error inicializando componentes base de audio: {e}")
+            self.microphone = None
+
+    def _setup_microphone(self):
+        if self._microphone_ready or not self.microphone or not self.recognizer:
+            return
+            
+        try:
             with self.microphone as source:
                 self.recognizer.adjust_for_ambient_noise(source, duration=1.0)
+            self._microphone_ready = True
         except Exception as e:
-            logger.error(f"Error inicializando micrófono: {e}")
+            logger.error(f"Error calibrando ruido del micrófono: {e}")
             self.microphone = None
 
     def get_engine(self):
@@ -63,6 +72,9 @@ class AudioService:
         """Escucha el micrófono y lo convierte a texto de forma síncrona."""
         if timeout_silencio is None: timeout_silencio = TIMEOUT_SILENCIO
         if limite_segundo is None: limite_segundo = LIMITE_SEGUNDOS
+        
+        self._setup_microphone()
+        
         if not self.microphone or not self.recognizer:
             # Fallback a terminal si no hay mic
             return input("\n[Escribe comando de emergencia] Tú: ").strip().lower()

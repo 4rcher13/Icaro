@@ -47,5 +47,15 @@ class TestMemory(unittest.TestCase):
         self.assertEqual(historial[0]["text"], "Dos")
         self.assertEqual(historial[1]["text"], "Tres")
         
+    def test_json_corrupto(self):
+        # Escribir archivo no válido intencionalmente
+        self.test_file_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.test_file_path, "w", encoding="utf-8") as f:
+            f.write("{invalid_json_;;;;}")
+        
+        mem = self.MemoryManager()
+        historial = mem.cargar()
+        self.assertEqual(historial, [])
+        
 if __name__ == "__main__":
     unittest.main()

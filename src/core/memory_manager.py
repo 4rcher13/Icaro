@@ -3,7 +3,7 @@ import json
 import logging
 from pathlib import Path
 
-from src.config.settings import HISTORY_FILE, MAX_HISTORY
+from ..config.settings import HISTORY_FILE, MAX_HISTORY
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,11 @@ class MemoryManager:
                 return []
             with open(self.archivo, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except (json.JSONDecodeError, OSError):
+        except json.JSONDecodeError:
+            logger.warning("Historial corrupto, reiniciando")
+            return []
+        except OSError:
+            logger.error("Error de I/O leyendo historial.")
             return []
 
     def cargar(self):

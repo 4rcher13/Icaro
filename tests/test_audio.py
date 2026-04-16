@@ -34,5 +34,17 @@ class TestAudio(unittest.TestCase):
             res = self.audio.escuchar()
             self.assertEqual(res, "comando consola")
 
+    def test_escuchar_unknown_value(self):
+        import speech_recognition as sr
+        self.audio.recognizer.recognize_google.side_effect = sr.UnknownValueError()
+        res = self.audio.escuchar(timeout_silencio=0.1, limite_segundo=1)
+        self.assertEqual(res, "")
+
+    def test_escuchar_request_error(self):
+        import speech_recognition as sr
+        self.audio.recognizer.recognize_google.side_effect = sr.RequestError("API no disponible")
+        res = self.audio.escuchar(timeout_silencio=0.1, limite_segundo=1)
+        self.assertEqual(res, "")
+
 if __name__ == "__main__":
     unittest.main()

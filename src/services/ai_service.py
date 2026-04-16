@@ -13,7 +13,7 @@ except ImportError:
     ollama = None
 
 import logging
-from src.config.settings import GEMINI_API_KEY, MODELO_LOCAL
+from ..config.settings import GEMINI_API_KEY, MODELO_LOCAL
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +42,12 @@ class AIService:
 - hacer_click()
 """
 
-    def _ensure_models_initialized(self):
+    def _ensure_models_initialized(self) -> bool:
         if self._models_initialized:
-            return
+            return self.ia_habilitada or self.ollama_habilitado
+            
+        if not GEMINI_API_KEY:
+            logger.warning("GEMINI_API_KEY no configurada, fallando a local pasivamente.")
             
         self._models_initialized = True
         
@@ -75,6 +78,8 @@ class AIService:
                 self.ollama_habilitado = True
             except Exception:
                 logger.warning("Ollama offline.")
+                
+        return self.ia_habilitada or self.ollama_habilitado
 
     def route_command(self, text: str) -> dict:
         """
@@ -85,7 +90,8 @@ class AIService:
         if text.lower() in ["hola", "hey", "hola icaro", "hey icaro"]:
             return {"intent": None, "target": None, "respuesta": "Hola, a tu servicio."}
             
-        self._ensure_models_initialized()
+        if not self._ensure_models_initialized():
+            return {"intent": None, "target": None, "respuesta": "Sistemas cognitivos no configurados."}
         
         desc = self.herramientas_schema
         prompt_enrutamiento = f"""
@@ -137,7 +143,9 @@ Ejemplo: {{"intent": "abrir_aplicacion", "target": "vscode", "respuesta": "Abrie
 
     def summarize(self, text: str) -> str:
         """Da una respuesta directa a una charla/resumen sin lanzar acciones."""
-        self._ensure_models_initialized()
+        if not self._ensure_models_initialized():
+            return "Las capacidades IA están apagadas."
+            
         if self.ia_habilitada:
             try:
                 return self.chat.send_message(text).text
