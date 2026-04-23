@@ -6,5 +6,37 @@
   {
     "role": "model",
     "text": "¡Hola! Soy Qwen, un asistente creado por Alibaba Cloud. ¿En qué puedo ayudarte hoy?"
+  },
+  {
+    "role": "user",
+    "text": "dame la hora"
+  },
+  {
+    "role": "model",
+    "text": "Son las 09:05 PM."
+  },
+  {
+    "role": "user",
+    "text": "abre el bloc de notas"
+  },
+  {
+    "role": "model",
+    "text": "Abriendo Bloc de Notas."
+  },
+  {
+    "role": "user",
+    "text": "dame la hora"
+  },
+  {
+    "role": "model",
+    "text": "Son las 09:06 PM."
+  },
+  {
+    "role": "user",
+    "text": "abre el bloc de notas"
+  },
+  {
+    "role": "model",
+    "text": "Abriendo Bloc de Notas."
   }
 ]

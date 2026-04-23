@@ -1,7 +1,7 @@
 import time
 import logging
-import unicodedata
 
+from typing import Optional
 from ..config.settings import WAKE_WORD
 from .memory_manager import MemoryManager
 from .command_processor import CommandProcessor
@@ -9,6 +9,8 @@ from .telemetry import Telemetry
 from ..services.audio_service import AudioService
 from ..services.action_service import ActionService
 from ..services.ai_service import AIService
+from ..utils.text_utils import normalize_text
+from .protocols import AudioProtocol, AIProtocol, MemoryProtocol, ActionProtocol, TelemetryProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -23,30 +25,51 @@ class Icaro:
     Cada transición emite telemetría UDP al widget UI.
     """
 
-    def __init__(self, silent: bool = False, no_ai: bool = False):
-        # Telemetría debe ser lo primero para que la UI vea el arranque
-        self.telemetry = Telemetry()
+    def __init__(
+        self, 
+        silent: bool = False, 
+        no_ai: bool = False,
+        audio_service: Optional[AudioProtocol] = None,
+        ai_service: Optional[AIProtocol] = None,
+        memory_manager: Optional[MemoryProtocol] = None,
+        action_service: Optional[ActionProtocol] = None,
+        telemetry_service: Optional[TelemetryProtocol] = None
+    ):
+        # 0. Telemetría y Configuración
+        self.telemetry = telemetry_service or Telemetry()
         self.telemetry.send("initializing")
 
-        logger.info("Iniciando subsistemas en arquitectura limpia...")
+        logger.info("Iniciando subsistemas con Inyección de Dependencias...")
         self.silent = silent
         self.no_ai = no_ai
 
         # 1. Capa de datos
-        self.memory = MemoryManager()
+        self.memory = memory_manager or MemoryManager()
 
         # 2. Servicios base
-        self.audio = AudioService()
-        self.action = ActionService()
-        self.ai = AIService(self.memory)
+        self.audio = audio_service or AudioService()
+        self.action = action_service or ActionService()
+        self.ai = ai_service or AIService(self.memory)
 
         if self.no_ai:
-            self.ai.ia_habilitada = False
-            self.ai.ollama_habilitado = False
+            if hasattr(self.ai, 'ia_habilitada'):
+                self.ai.ia_habilitada = False
+            if hasattr(self.ai, 'ollama_habilitado'):
+                self.ai.ollama_habilitado = False
             logger.info("Modo --no-ai activo: solo comandos locales.")
 
         # 3. Router lógico
-        self.processor = CommandProcessor(self.ai, self.action)
+        self.processor = CommandProcessor(
+            self.ai, 
+            self.action, 
+            use_rapidfuzz=True
+        )
+
+        # 4. Feature Flags (Rollback capability)
+        self.flags = {
+            "USE_RAPIDFUZZ": True,
+            "BATCH_SAVE": True,
+        }
 
         self.alias_despertar = WAKE_WORD
         self.is_sleeping = True
@@ -56,18 +79,18 @@ class Icaro:
     # Wake-word helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _normalizar(s: str) -> str:
-        """Quita tildes y pasa a minúsculas para comparación robusta."""
-        return "".join(
-            c for c in unicodedata.normalize("NFD", s.lower())
-            if unicodedata.category(c) != "Mn"
-        )
-
     def _wake_word_detected(self, command: str) -> bool:
         """Detecta wake word ignorando tildes y mayúsculas."""
-        cmd_norm = self._normalizar(command)
-        return any(self._normalizar(alias) in cmd_norm for alias in self.alias_despertar)
+        cmd_norm = normalize_text(command)
+        return any(normalize_text(alias) in cmd_norm for alias in self.alias_despertar)
+
+    def _remove_wake_word(self, command: str) -> str:
+        """Elimina aliases del wake word del texto (versión robusta)."""
+        result = command
+        for alias in self.alias_despertar:
+            # Eliminar tanto con tilde como sin ella
+            result = result.replace(alias, "").replace(normalize_text(alias), "")
+        return result.strip()
 
     def _remove_wake_word(self, command: str) -> str:
         """Elimina aliases del wake word del texto (versión robusta)."""

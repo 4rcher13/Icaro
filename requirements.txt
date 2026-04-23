@@ -5,3 +5,4 @@ pytest
 pyttsx3
 pyaudio
 ollama
+rapidfuzz

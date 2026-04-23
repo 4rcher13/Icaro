@@ -1,9 +1,16 @@
 import logging
 from difflib import get_close_matches
+try:
+    from rapidfuzz import process, fuzz
+    RAPIDFUZZ_AVAILABLE = True
+except ImportError:
+    RAPIDFUZZ_AVAILABLE = False
+
+# Flujo procesar -> normalizar -> enrutar -> ejecutar
 
 logger = logging.getLogger(__name__)
 
-# Vocabulario canónico de intents locales reconocibles por fonética
+# Vocabulario canónicos de intents locales reconocibles por fonética
 _INTENT_KEYWORDS = [
     "hora", "fecha", "calculadora", "notepad", "código", "abrir",
     "cerrar", "buscar", "youtube", "volumen", "subir", "bajar",
@@ -16,9 +23,10 @@ class CommandProcessor:
     Pipeline unidireccional: normalizar → enrutar → ejecutar → responder
     """
     
-    def __init__(self, ai_service, action_service):
+    def __init__(self, ai_service, action_service, use_rapidfuzz: bool = False):
         self.ai = ai_service
         self.action = action_service
+        self.use_rapidfuzz = use_rapidfuzz and RAPIDFUZZ_AVAILABLE
 
     def process(self, comando: str) -> str:
         """Procesa un comando completo siguiendo el pipeline de 4 etapas."""
@@ -37,17 +45,30 @@ class CommandProcessor:
     def _normalize(self, text: str) -> str:
         """
         Limpia el texto crudo del reconocedor.
-        Aplica corrección fonética básica via difflib para errores de voz comunes.
+        Aplica corrección fonética básica via rapidfuzz o difflib.
         """
         text = text.lower().strip()
         words = text.split()
         corrected = []
+        
         for word in words:
-            matches = get_close_matches(word, _INTENT_KEYWORDS, n=1, cutoff=0.75)
-            corrected.append(matches[0] if matches else word)
+            if self.use_rapidfuzz:
+                # Usamos token_set_ratio para mejor matching de voz
+                match_data = process.extractOne(
+                    word, _INTENT_KEYWORDS, scorer=fuzz.token_set_ratio
+                )
+                if match_data and match_data[1] >= 75: # Score >= 75%
+                    corrected.append(match_data[0])
+                else:
+                    corrected.append(word)
+            else:
+                matches = get_close_matches(word, _INTENT_KEYWORDS, n=1, cutoff=0.75)
+                corrected.append(matches[0] if matches else word)
+                
         result = " ".join(corrected)
         if result != text:
-            logger.debug(f"Corrección fonética: '{text}' → '{result}'")
+            engine = "rapidfuzz" if self.use_rapidfuzz else "difflib"
+            logger.debug(f"Corrección fonética ({engine}): '{text}' → '{result}'")
         return result
 
     def _route(self, clean: str) -> dict:

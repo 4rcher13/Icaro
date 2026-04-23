@@ -1,7 +1,8 @@
 import json
 import time
-import unicodedata
 import logging
+from ..utils.text_utils import normalize_text
+from ..core.nlu.intents import local_fallback
 
 try:
     import google.genai as genai
@@ -20,106 +21,6 @@ from ..config.settings import GEMINI_API_KEY, MODELO_LOCAL
 logger = logging.getLogger(__name__)
 
 
-def _strip_accents(s: str) -> str:
-    return "".join(
-        c for c in unicodedata.normalize("NFD", s)
-        if unicodedata.category(c) != "Mn"
-    )
-
-
-# ---------------------------------------------------------------------------
-# Respuestas locales (sin IA) para comandos frecuentes
-# ---------------------------------------------------------------------------
-
-_LOCAL_PATTERNS: list[tuple[list[str], dict]] = [
-    # Hora y fecha
-    (["hora", "time", "qué hora"],
-     {"intent": "dar_hora_fecha", "target": "hora", "respuesta": "Te digo la hora."}),
-    (["fecha", "día", "date", "qué día"],
-     {"intent": "dar_hora_fecha", "target": "fecha", "respuesta": "Te digo la fecha."}),
-    # Volumen
-    (["sube el volumen", "más volumen", "subir volumen", "aumenta"],
-     {"intent": "control_volumen", "target": "subir", "respuesta": "Subiendo el volumen."}),
-    (["baja el volumen", "menos volumen", "bajar volumen", "baja volumen"],
-     {"intent": "control_volumen", "target": "bajar", "respuesta": "Bajando el volumen."}),
-    (["silencio", "mute", "silencia", "silenciar"],
-     {"intent": "control_volumen", "target": "silenciar", "respuesta": "Silenciando el audio."}),
-    # YouTube
-    (["youtube", "pon música", "reproduce", "música"],
-     None),  # Necesita query → se maneja con extracción dinámica
-    # Google
-    (["busca", "búscame", "google", "buscar"],
-     None),  # Necesita query → se maneja con extracción dinámica
-    # Abrir apps
-    (["abre", "abrir", "open"],
-     None),  # Necesita app name → dinámica
-    # Calculadora / notepad
-    (["calculadora", "calcula"],
-     {"intent": "abrir_aplicacion", "target": "calculadora", "respuesta": "Abriendo calculadora."}),
-    (["notepad", "bloc de notas"],
-     {"intent": "abrir_aplicacion", "target": "notepad", "respuesta": "Abriendo Bloc de Notas."}),
-    (["código", "vscode", "visual studio"],
-     {"intent": "abrir_aplicacion", "target": "vscode", "respuesta": "Abriendo Visual Studio Code."}),
-    # Saludos
-    (["hola", "hey", "buenas", "buenos", "qué tal"],
-     {"intent": None, "target": None, "respuesta": "Hola, ¿en qué te ayudo?"}),
-]
-
-
-def _local_fallback(text: str) -> dict | None:
-    """
-    Intenta resolver el comando con reglas locales sin necesidad de IA.
-    Devuelve un intent dict o None si no puede resolverlo localmente.
-    """
-    t = _strip_accents(text.lower().strip())
-
-    # Saludos
-    if any(w in t for w in ["hola", "hey", "buenas", "buenos dias", "que tal"]):
-        return {"intent": None, "target": None, "respuesta": "Hola, ¿en qué te ayudo?"}
-
-    # Hora y fecha
-    if any(w in t for w in ["hora", "time", "que hora"]):
-        return {"intent": "dar_hora_fecha", "target": "hora", "respuesta": "Te digo la hora."}
-    if any(w in t for w in ["fecha", "dia", "date", "que dia", "que fecha"]):
-        return {"intent": "dar_hora_fecha", "target": "fecha", "respuesta": "Te digo la fecha."}
-
-    # Volumen
-    if any(w in t for w in ["sube", "aumenta", "mas volumen", "subir volumen"]):
-        return {"intent": "control_volumen", "target": "subir", "respuesta": "Subiendo el volumen."}
-    if any(w in t for w in ["baja", "menos volumen", "bajar volumen"]):
-        return {"intent": "control_volumen", "target": "bajar", "respuesta": "Bajando el volumen."}
-    if any(w in t for w in ["silencio", "mute", "silenciar"]):
-        return {"intent": "control_volumen", "target": "silenciar", "respuesta": "Silenciando."}
-
-    # Calculadora / Notepad / VSCode
-    if any(w in t for w in ["calculadora", "calcula"]):
-        return {"intent": "abrir_aplicacion", "target": "calculadora", "respuesta": "Abriendo calculadora."}
-    if any(w in t for w in ["notepad", "bloc de notas"]):
-        return {"intent": "abrir_aplicacion", "target": "notepad", "respuesta": "Abriendo Bloc de Notas."}
-    if any(w in t for w in ["codigo", "vscode", "visual studio"]):
-        return {"intent": "abrir_aplicacion", "target": "vscode", "respuesta": "Abriendo Visual Studio Code."}
-
-    # YouTube — extrae la query
-    if "youtube" in t or any(w in t for w in ["pon musica", "reproduce", "musica"]):
-        query = t.replace("abre", "").replace("pon", "").replace("reproduce", "")
-        query = query.replace("musica", "").replace("youtube", "").strip()
-        return {"intent": "reproducir_youtube", "target": query, "respuesta": f"Buscando en YouTube: {query}."}
-
-    # Google — extrae la query
-    if any(w in t for w in ["busca", "buscame", "google"]):
-        query = (
-            t.replace("busca", "").replace("buscame", "")
-            .replace("en google", "").replace("google", "").strip()
-        )
-        return {"intent": "buscar_google", "target": query, "respuesta": f"Buscando {query}."}
-
-    # Abrir app genérica
-    if any(w in t for w in ["abre", "abrir", "open"]):
-        app = t.replace("abre", "").replace("abrir", "").replace("open", "").strip()
-        if app:
-            return {"intent": "abrir_aplicacion", "target": app, "respuesta": f"Intentando abrir {app}."}
-
-    return None  # No se pudo resolver localmente
 
 
 # ---------------------------------------------------------------------------
@@ -172,7 +73,7 @@ class AIService:
                     ),
                 )
                 self.ia_habilitada = True
-                logger.info("Gemini inicializado correctamente.")
+                logger.info("Gemini iniciado correctamente.")
             except Exception as exc:
                 logger.error(f"Fallo Gemini: {exc}")
         else:
@@ -200,7 +101,7 @@ class AIService:
           4. Respuesta local básica (si todo falla)
         """
         # ── Paso 1: Respuesta local inmediata ──
-        local = _local_fallback(text)
+        local = local_fallback(text)
         if local:
             logger.info(f"Respuesta LOCAL para: '{text}'")
             return local

@@ -3,6 +3,8 @@ import platform
 import webbrowser
 import time
 import datetime
+import subprocess
+from typing import Dict, Any, Optional
 
 pyautogui = None
 pyperclip = None
@@ -15,10 +17,24 @@ try:
 except ImportError:
     print("[ActionService] Advertencia: Módulos de automatización GUI no instalados. (pip install pyautogui pyperclip pygetwindow)")
 
+
+# Whitelist de aplicaciones permitidas por seguridad
+ALLOWED_APPS: Dict[str, str] = {
+    "word": "winword",
+    "excel": "excel",
+    "notepad": "notepad",
+    "calculadora": "calc",
+    "code": "code",
+    "vscode": "code",
+    "chrome": "chrome",
+    "edge": "msedge",
+    "spotify": "spotify",
+}
+
 class ActionService:
     """Ejecuta acciones en el sistema operativo sin lógica de cerebro ni audio."""
     
-    def execute(self, config: dict) -> str:
+    def execute(self, config: Dict[str, Any]) -> str:
         """
         Recibe un diccionario con intent y los argumentos necesarios,
         y ejecuta la acción. Retorna el resultado string (si es necesario).
@@ -51,28 +67,34 @@ class ActionService:
             
         return f"Acción desconocida: {intent}"
 
-    def _abrir_aplicacion(self, nombre_app):
-        if not nombre_app: return "Sin aplicación destino."
-        sistema = platform.system()
-        apps = {
-            "word": ("winword", "Microsoft Word"),
-            "excel": ("excel", "Microsoft Excel"),
-            "notepad": ("notepad", "Bloc de Notas"),
-            "calculadora": ("calc", "Calculadora"),
-            "code": ("code", "Visual Studio Code"),
-            "vscode": ("code", "Visual Studio Code"),
-        }
+    def _abrir_aplicacion(self, nombre_app: Optional[str]) -> str:
+        """Abre una aplicación de forma segura usando una whitelist."""
+        if not nombre_app: 
+            return "Sin aplicación destino."
+            
         nombre_lower = nombre_app.lower().strip()
-        comando, nombre_real = apps.get(nombre_lower, (nombre_lower, nombre_app))
+        
+        # Validación contra whitelist
+        if nombre_lower not in ALLOWED_APPS:
+            return f"Acceso denegado: '{nombre_app}' no está en la lista blanca de seguridad."
+            
+        comando = ALLOWED_APPS[nombre_lower]
+        sistema = platform.system()
+        
         try:
-            if sistema == "Windows": os.system(f"start {comando}")
-            elif sistema == "Darwin": os.system(f"open -a '{nombre_real}'")
-            else: os.system(f"{comando} &")
-            return f"Se abrió {nombre_real}"
+            if sistema == "Windows":
+                # Usamos shell=True solo porque los comandos vienen de una whitelist controlada
+                # 'start' es un comando interno de cmd.exe
+                subprocess.run(["cmd", "/c", "start", comando], shell=False)
+            elif sistema == "Darwin":
+                subprocess.run(["open", "-a", comando], check=True)
+            else:
+                subprocess.run([comando], check=True, start_new_session=True)
+            return f"Se abrió {nombre_app}"
         except Exception as e:
-            return str(e)
+            return f"Error al abrir {nombre_app}: {str(e)}"
 
-    def _cerrar_ventana(self, nombre_ventana):
+    def _cerrar_ventana(self, nombre_ventana: str) -> str:
         objetivo = nombre_ventana.lower().strip()
         try:
             if gw:
@@ -88,10 +110,10 @@ class ActionService:
                 else: pyautogui.hotkey('alt', 'f4')
                 return f"Se cerró {objetivo}."
             return f"No encontré ventana {objetivo}."
-        except:
-            return "No se pudo cerrar."
+        except Exception as e:
+            return f"Error al cerrar ventana: {str(e)}"
 
-    def _control_volumen(self, accion):
+    def _control_volumen(self, accion: str) -> str:
         if platform.system() != "Windows": return "No disponible"
         mapa = {"subir": ("volumeup", 5), "bajar": ("volumedown", 5), "silenciar": ("volumemute", 1)}
         tecla, rep = mapa.get(accion.lower(), (None, 0))
@@ -99,61 +121,68 @@ class ActionService:
             try:
                 for _ in range(rep): pyautogui.press(tecla)
                 return "listo"
-            except: pass
+            except Exception:
+                pass
         return "error de volumen"
 
-    def _buscar_google(self, query):
+    def _buscar_google(self, query: str) -> str:
         if query:
-            webbrowser.open(f"https://www.google.com/search?q={query.replace(' ', '+')}")
-        return "busqueda abierta"
+            # Sanitización básica de URL
+            query_sanitizada = query.replace(' ', '+').replace('"', '').replace("'", "")
+            webbrowser.open(f"https://www.google.com/search?q={query_sanitizada}")
+        return "búsqueda abierta"
 
-    def _reproducir_youtube(self, query):
+    def _reproducir_youtube(self, query: str) -> str:
         if query:
             import urllib.request
             import re
             try:
-                keyword = query.replace(' ', '+')
+                keyword = query.replace(' ', '+').replace('"', '')
                 html = urllib.request.urlopen("https://www.youtube.com/results?search_query=" + keyword)
                 video_ids = re.findall(r"watch\?v=(\S{11})", html.read().decode())
                 if video_ids:
                     webbrowser.open("https://www.youtube.com/watch?v=" + video_ids[0])
                 else:
                     webbrowser.open(f"https://www.youtube.com/results?search_query={keyword}")
-            except:
+            except Exception:
                 webbrowser.open(f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}")
         else:
             webbrowser.open("https://www.youtube.com/")
         return "youtube abierto"
 
-    def _crear_carpeta(self, nombre):
+    def _crear_carpeta(self, nombre: str) -> str:
         if not nombre: nombre = "Nueva Carpeta"
-        ruta = os.path.join(os.path.expanduser("~"), "Desktop", nombre.strip().title())
+        # Sanitizar nombre para evitar path traversal
+        nombre_seguro = "".join(c for c in nombre if c.isalnum() or c in (' ', '-', '_')).strip()
+        ruta = os.path.join(os.path.expanduser("~"), "Desktop", nombre_seguro.title())
         os.makedirs(ruta, exist_ok=True)
-        return "carpeta creada"
+        return f"Carpeta '{nombre_seguro}' creada en el escritorio."
 
-    def _escribir_texto(self, texto):
+    def _escribir_texto(self, texto: str) -> str:
         if texto and pyperclip and pyautogui:
             time.sleep(0.4)
             try:
                 pyperclip.copy(texto)
                 pyautogui.hotkey('ctrl', 'v')
-            except:
+            except Exception:
                 pyautogui.write(texto, interval=0.015)
         return "escrito"
 
-    def _dar_hora_fecha(self, tipo):
+    def _dar_hora_fecha(self, tipo: str) -> str:
         ahora = datetime.datetime.now()
         if tipo.lower() == "hora":
             return f"Son las {ahora.strftime('%I:%M %p')}."
         return f"Hoy es {ahora.day} del {ahora.month} del {ahora.year}."
 
-    def _hacer_click(self):
+    def _hacer_click(self) -> str:
         try: 
             if pyautogui: pyautogui.click()
-        except: pass
+        except Exception: 
+            pass
         return "click"
     
-    def _suspender_equipo(self):
+    def _suspender_equipo(self) -> str:
         if platform.system() == "Windows":
-            os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
-        return "suspendido"
+            # Comando de sistema seguro
+            subprocess.run(["rundll32.exe", "powrprof.dll,SetSuspendState", "0,1,0"], shell=False)
+        return "equipo suspendido"

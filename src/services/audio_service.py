@@ -1,8 +1,8 @@
-import pyttsx3
+import pyttsx3 #Convertir texto a voz
 import speech_recognition as sr
 import time
 import logging
-import unicodedata
+from ..utils.text_utils import normalize_text
 
 from ..config.settings import VOICE_RATE, TIMEOUT_SILENCIO, LIMITE_SEGUNDOS, MIC_INDEX
 
@@ -12,12 +12,6 @@ logger = logging.getLogger(__name__)
 _POST_SPEECH_DELAY = 0.6
 
 
-def _strip_accents(s: str) -> str:
-    """Normaliza una cadena quitando tildes, para comparación robusta."""
-    return "".join(
-        c for c in unicodedata.normalize("NFD", s)
-        if unicodedata.category(c) != "Mn"
-    )
 
 
 class AudioService:
