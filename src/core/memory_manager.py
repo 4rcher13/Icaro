@@ -30,8 +30,8 @@ class MemoryManager:
         # Registrar guardado al salir
         atexit.register(self.flush)
         
-        # Hilo de limpieza periódico (opcional, pero ayuda si no hay mensajes nuevos)
-        self._start_timer()
+        # Hilo daemon de flush periódico (sin timers recursivos)
+        threading.Thread(target=self._flush_worker, daemon=True).start()
 
     def _leer_archivo(self):
         """Lee el historial del disco de forma segura en la inicialización."""
@@ -76,17 +76,13 @@ class MemoryManager:
             resultado = re.sub(patron, remplazo, resultado)
         return resultado
 
-    def _start_timer(self):
-        """Inicia un temporizador para flush por tiempo."""
-        self.timer = threading.Timer(self.flush_timeout, self._timer_callback)
-        self.timer.daemon = True
-        self.timer.start()
-
-    def _timer_callback(self):
-        if self.pending_changes > 0:
-            logger.debug("Flush por timeout (30s)")
-            self.flush()
-        self._start_timer()
+    def _flush_worker(self):
+        """Hilo daemon que hace flush periódico sin crear timers recursivos."""
+        while True:
+            time.sleep(self.flush_timeout)
+            if self.pending_changes > 0:
+                logger.debug("Flush periódico del historial.")
+                self.flush()
 
     def flush(self):
         """Escribe el historial al disco inmediatamente."""
@@ -110,6 +106,7 @@ class MemoryManager:
         texto_seguro = self._redactar_sensible(texto)
         texto_final = f"[Largo omitido: {texto_seguro[:50]}...]" if len(texto_seguro) > 1000 else texto_seguro
         
+        should_flush = False
         with self.lock:
             self.historial.append({"role": "user" if rol == "user" else "model", "text": texto_final})
             
@@ -117,7 +114,8 @@ class MemoryManager:
                 self.historial = self.historial[-self.max_items:]
             
             self.pending_changes += 1
+            # Decidir si hacer flush dentro del lock para evitar race condition
+            should_flush = self.pending_changes >= self.buffer_size
 
-        # Decidir si hacer flush inmediato por tamaño de buffer
-        if self.pending_changes >= self.buffer_size:
+        if should_flush:
             self.flush()

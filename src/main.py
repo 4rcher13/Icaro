@@ -6,7 +6,7 @@ from pathlib import Path
 # Añadir el directorio raíz al path si es necesario (para ejecución directa)
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.config.settings import LOG_DIR, LOG_FILE
+from src.config.settings import LOGS_DIR, LOG_FILE
 from src.core.icaro import Icaro
 
 def main():
@@ -17,7 +17,7 @@ def main():
     args = parser.parse_args()
 
     # Asegurar existencia de carpeta logs
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
     # Configurar logging según flag
     log_level = logging.DEBUG if args.debug else logging.INFO

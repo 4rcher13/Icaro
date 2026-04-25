@@ -1,42 +1,162 @@
 [
   {
     "role": "user",
-    "text": "hola, â¿quiã©n eres?"
+    "text": "hola"
   },
   {
     "role": "model",
-    "text": "¡Hola! Soy Qwen, un asistente creado por Alibaba Cloud. ¿En qué puedo ayudarte hoy?"
+    "text": "Hola, ¿en qué te ayudo?"
   },
   {
     "role": "user",
-    "text": "dame la hora"
+    "text": "ícaro"
   },
   {
     "role": "model",
-    "text": "Son las 09:05 PM."
+    "text": "Lo siento, no pude procesar eso ahora mismo."
   },
   {
     "role": "user",
-    "text": "abre el bloc de notas"
+    "text": "ícaro"
   },
   {
     "role": "model",
-    "text": "Abriendo Bloc de Notas."
+    "text": "Lo siento, no pude procesar eso ahora mismo."
   },
   {
     "role": "user",
-    "text": "dame la hora"
+    "text": "cómo estás"
   },
   {
     "role": "model",
-    "text": "Son las 09:06 PM."
+    "text": "Lo siento, no pude procesar eso ahora mismo."
   },
   {
     "role": "user",
-    "text": "abre el bloc de notas"
+    "text": "cómo estás"
   },
   {
     "role": "model",
-    "text": "Abriendo Bloc de Notas."
+    "text": "Lo siento, no pude procesar eso ahora mismo. ¿Puedes repetirlo?"
+  },
+  {
+    "role": "user",
+    "text": "hola"
+  },
+  {
+    "role": "model",
+    "text": "Hola, ¿en qué te ayudo?"
+  },
+  {
+    "role": "user",
+    "text": "cómo estás"
+  },
+  {
+    "role": "model",
+    "text": "Lo siento, no pude procesar eso ahora mismo. ¿Puedes repetirlo?"
+  },
+  {
+    "role": "user",
+    "text": "ayúdame en una tarea ayúdame en una tarea"
+  },
+  {
+    "role": "model",
+    "text": "Lo siento, no pude procesar eso ahora mismo. ¿Puedes repetirlo?"
+  },
+  {
+    "role": "user",
+    "text": "jesús"
+  },
+  {
+    "role": "model",
+    "text": "Lo siento, no pude procesar eso ahora mismo. ¿Puedes repetirlo?"
+  },
+  {
+    "role": "user",
+    "text": "hola"
+  },
+  {
+    "role": "model",
+    "text": "Hola, ¿en qué te ayudo?"
+  },
+  {
+    "role": "user",
+    "text": "cómo estás"
+  },
+  {
+    "role": "model",
+    "text": "Estoy bien, gracias por preguntar."
+  },
+  {
+    "role": "user",
+    "text": "ya te puede hablar porque antes tenías varios bugs y no me dejaba hablarte"
+  },
+  {
+    "role": "model",
+    "text": "No entiendo qué hacer. Puedes proponerme una acción."
+  },
+  {
+    "role": "user",
+    "text": "ya me aburrí"
+  },
+  {
+    "role": "model",
+    "text": "No hay acción asignada."
+  },
+  {
+    "role": "user",
+    "text": "y creo"
+  },
+  {
+    "role": "model",
+    "text": "Comando no comprendido."
+  },
+  {
+    "role": "user",
+    "text": "qué hora es"
+  },
+  {
+    "role": "model",
+    "text": "Son las 07:10 PM."
+  },
+  {
+    "role": "user",
+    "text": "qué día es hoy"
+  },
+  {
+    "role": "model",
+    "text": "Hoy es 24 del 4 del 2026."
+  },
+  {
+    "role": "user",
+    "text": "explícame que es una matriz"
+  },
+  {
+    "role": "model",
+    "text": "Estás buscando información sobre matrices."
+  },
+  {
+    "role": "user",
+    "text": "utiliza géminis y explícame qué es una matriz"
+  },
+  {
+    "role": "model",
+    "text": "Ese parece ser un comando místico. No puedo ayudar con eso."
+  },
+  {
+    "role": "user",
+    "text": "utiliza géminis"
+  },
+  {
+    "role": "model",
+    "text": "No comprendí su solicitud."
+  },
+  {
+    "role": "user",
+    "text": "géminis"
+  },
+  {
+    "role": "model",
+    "text": "No se pudo entender la búsqueda."
   }
 ]

@@ -52,18 +52,23 @@ class CommandProcessor:
         corrected = []
         
         for word in words:
-            if self.use_rapidfuzz:
-                # Usamos token_set_ratio para mejor matching de voz
-                match_data = process.extractOne(
-                    word, _INTENT_KEYWORDS, scorer=fuzz.token_set_ratio
-                )
-                if match_data and match_data[1] >= 75: # Score >= 75%
-                    corrected.append(match_data[0])
+            # Solo aplicar fuzzy-matching a palabras de 4+ caracteres
+            # para evitar falsos positivos (ej. 'hola' → 'hora')
+            if len(word) >= 4:
+                if self.use_rapidfuzz:
+                    match_data = process.extractOne(
+                        word, _INTENT_KEYWORDS, scorer=fuzz.ratio
+                    )
+                    # Threshold 90% — debe ser muy similar para corregir
+                    if match_data and match_data[1] >= 90:
+                        corrected.append(match_data[0])
+                        continue
                 else:
-                    corrected.append(word)
-            else:
-                matches = get_close_matches(word, _INTENT_KEYWORDS, n=1, cutoff=0.75)
-                corrected.append(matches[0] if matches else word)
+                    matches = get_close_matches(word, _INTENT_KEYWORDS, n=1, cutoff=0.90)
+                    if matches:
+                        corrected.append(matches[0])
+                        continue
+            corrected.append(word)
                 
         result = " ".join(corrected)
         if result != text:
@@ -84,8 +89,11 @@ class CommandProcessor:
             # Comandos como hora/fecha, el resultado de la acción ES la respuesta
             if intent_data.get("intent") in ("dar_hora_fecha",):
                 return resultado_accion
-            if resultado_accion:
+            if resultado_accion and not resultado_accion.startswith("Acción desconocida"):
                 logger.info(f"Sistema: {resultado_accion}")
-                
+            elif resultado_accion and resultado_accion.startswith("Acción desconocida"):
+                # La IA devolvió un intent de conversación ficticio — solo log debug
+                logger.debug(f"Intent conversacional ignorado por ActionService: {resultado_accion}")
+
         return respuesta_hablada
 

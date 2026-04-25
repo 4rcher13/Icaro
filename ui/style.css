@@ -279,20 +279,26 @@ body {
     flex-direction: column;
     gap: 9px;
     min-height: 96px;
+    max-height: 180px;
+    overflow-y: auto;
 }
+
+.info-panel::-webkit-scrollbar { width: 4px; }
+.info-panel::-webkit-scrollbar-track { background: transparent; }
+.info-panel::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
 
 .panel-divider {
     height: 1px;
     background: var(--clr-border);
     border-radius: 1px;
+    flex-shrink: 0;
 }
 
 .info-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 10px;
     min-height: 20px;
-    overflow: hidden;
 }
 
 .row-tag {
@@ -302,6 +308,7 @@ body {
     padding: 2px 6px;
     border-radius: 4px;
     flex-shrink: 0;
+    margin-top: 1px;
 }
 
 .user-tag {
@@ -325,6 +332,36 @@ body {
     opacity: 0.82;
     flex: 1;
     min-width: 0;
+    line-height: 1.4;
+}
+
+.info-row.expanded .row-text {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+.expand-btn {
+    background: transparent;
+    border: none;
+    color: var(--clr-text-lo);
+    cursor: pointer;
+    padding: 0;
+    margin-top: 1px;
+    display: none;
+    transition: transform 0.3s ease, color 0.2s;
+}
+
+.expand-btn:hover {
+    color: var(--clr-text-hi);
+}
+
+.info-row.has-overflow .expand-btn {
+    display: block;
+}
+
+.info-row.expanded .expand-btn {
+    transform: rotate(180deg);
 }
 
 /* ================================================================

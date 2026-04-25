@@ -37,14 +37,20 @@
 
         <!-- ── Info panel ───────────────────────────── -->
         <aside class="info-panel">
-            <div class="info-row">
+            <div class="info-row" id="rowUser">
                 <span class="row-tag user-tag">TÚ</span>
                 <span class="row-text" id="transcriptText">—</span>
+                <button class="expand-btn" onclick="toggleExpand('rowUser')" title="Expandir/Contraer">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
             </div>
             <div class="panel-divider"></div>
-            <div class="info-row">
+            <div class="info-row" id="rowAi">
                 <span class="row-tag ai-tag">ÍCARO</span>
                 <span class="row-text" id="responseText">—</span>
+                <button class="expand-btn" onclick="toggleExpand('rowAi')" title="Expandir/Contraer">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
             </div>
         </aside>
 
@@ -101,8 +107,23 @@
             rings.forEach(r => r.classList.toggle('active', listening));
 
             // 5. Panel de información — actualizar solo si hay texto nuevo
-            if (transcript) transcriptText.textContent = transcript;
-            if (response)   responseText.textContent   = response;
+            if (transcript) {
+                const row = document.getElementById('rowUser');
+                row.classList.remove('expanded');
+                transcriptText.textContent = transcript;
+                row.classList.toggle('has-overflow', transcriptText.scrollWidth > transcriptText.clientWidth);
+            }
+            if (response) {
+                const row = document.getElementById('rowAi');
+                row.classList.remove('expanded');
+                responseText.textContent = response;
+                row.classList.toggle('has-overflow', responseText.scrollWidth > responseText.clientWidth);
+            }
+        }
+
+        function toggleExpand(rowId) {
+            const row = document.getElementById(rowId);
+            row.classList.toggle('expanded');
         }
 
         // ── Close button ────────────────────────────────────────────────
