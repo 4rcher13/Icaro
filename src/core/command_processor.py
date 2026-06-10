@@ -15,6 +15,7 @@ _INTENT_KEYWORDS = [
     "hora", "fecha", "calculadora", "notepad", "código", "abrir",
     "cerrar", "buscar", "youtube", "volumen", "subir", "bajar",
     "salir", "apagar", "suspender", "carpeta", "copiar", "pegar",
+    "pantalla", "ver", "captura", "observa", "mira",
 ]
 
 class CommandProcessor:
@@ -56,12 +57,10 @@ class CommandProcessor:
             # para evitar falsos positivos (ej. 'hola' → 'hora')
             if len(word) >= 4:
                 if self.use_rapidfuzz:
-                    match_data = process.extractOne(
-                        word, _INTENT_KEYWORDS, scorer=fuzz.ratio
-                    )
-                    # Threshold 90% — debe ser muy similar para corregir
-                    if match_data and match_data[1] >= 90:
-                        corrected.append(match_data[0])
+                    # Use rapidfuzz with a score_cutoff to simplify logic and avoid index errors
+                    match = process.extractOne(word, _INTENT_KEYWORDS, scorer=fuzz.ratio, score_cutoff=90)
+                    if match:
+                        corrected.append(match[0])
                         continue
                 else:
                     matches = get_close_matches(word, _INTENT_KEYWORDS, n=1, cutoff=0.90)
@@ -86,8 +85,8 @@ class CommandProcessor:
         
         if intent_data.get("intent"):
             resultado_accion = self.action.execute(intent_data)
-            # Comandos como hora/fecha, el resultado de la acción ES la respuesta
-            if intent_data.get("intent") in ("dar_hora_fecha",):
+            # Comandos donde el resultado de la acción ES la respuesta hablada
+            if intent_data.get("intent") in ("dar_hora_fecha", "ver_pantalla"):
                 return resultado_accion
             if resultado_accion and not resultado_accion.startswith("Acción desconocida"):
                 logger.info(f"Sistema: {resultado_accion}")
