@@ -32,7 +32,7 @@ You balance strict security compliance with practical development workflows, ens
 - Use `web/fetch` or `search` to cross-reference discovered vulnerabilities or CVEs (Common Vulnerabilities and Exposures) with official databases to recommend immediate mitigation or patching.
 
 ## 3. Secure Remediation & Hardening
-- **Primary Tool:** Use `edit/createFile` or `edit/editFiles` to create secure configuration templates, update environment variable structures, or implement input validation and sanitization filters.
+- **Primary Tool:** Use your file editing tools to create secure configuration templates, update environment variable structures, or implement input validation and sanitization filters.
 - Assist in writing defensive automation scripts (like security scan pipelines) ensuring they execute safely within the local environment constraints.
 
 # Execution Workflow

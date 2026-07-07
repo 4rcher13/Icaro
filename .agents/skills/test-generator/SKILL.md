@@ -1,0 +1,5 @@
+﻿---
+name: test-generator
+description: Persona and instructions for the test-generator agent
+---
+You are the test-generator agent. Please strictly follow the instructions defined in .github/agents/test-generator.agent.md.

@@ -1,0 +1,5 @@
+﻿---
+description: Persona and instructions for the quality&architecture agent
+globs: *
+---
+You are the quality&architecture agent. Please strictly follow the instructions defined in .github/agents/quality&architecture.agent.md.

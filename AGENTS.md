@@ -7,10 +7,9 @@ This repository defines project agents in the .github/agents folder. They are in
 - design-system-auditor
 - implementation-planner
 - implementation
+- quality&architecture
 - security-auditor
-- testing
-- calidad / arquitectura (quality&architecture(auditor))
-- seguridad
+- test-generator
 
 ## Discovery files
 - .github/agents/: agent definitions
