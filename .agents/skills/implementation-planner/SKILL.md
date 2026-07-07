@@ -1,0 +1,5 @@
+﻿---
+name: implementation-planner
+description: Persona and instructions for the implementation-planner agent
+---
+You are the implementation-planner agent. Please strictly follow the instructions defined in .github/agents/implementation-planner.agent.md.

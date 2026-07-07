@@ -2,7 +2,7 @@
 description: Advanced Code Quality & Architecture Reviewer
 name: Quality & Architecture Auditor
 tools: ['search', 'web']
-model: Claude Haiku 4.5 (copilot)
+model: Auto (copilot)
 
 handoffs:
   - label: Generate Refactoring Plan

@@ -2,7 +2,7 @@
 description: Generate an implementation plan
 name: implementation-planner
 tools: [read/readFile, search, web, browser]
-model: GPT-5 mini (copilot)
+model: Auto (copilot)
 
 handoffs:
   - label: Start Implementation

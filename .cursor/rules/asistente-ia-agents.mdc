@@ -1,0 +1,16 @@
+---
+description: Project agents and workflow guidance for Asistente_IA
+globs: "**/*"
+---
+
+# Asistente_IA project agents
+
+Use these project agents when they fit the task:
+- ai-architect: AI architecture, model selection, prompt design, and experimentation.
+- implementation-planner: create structured implementation plans and scope.
+- implementation: apply the planned code changes.
+- testing: create or improve tests and validation steps.
+- design-system-auditor: review UI/UX and Windows widget experience.
+- security-auditor: assess security risks and remediation steps.
+
+Prefer the smallest change that solves the problem and validate it with the relevant tests.

@@ -168,6 +168,7 @@ JSON:"""
         self.chat = None            # Sesión de chat Gemini
         self.nvidia_client = None   # Cliente NVIDIA (DeepSeek)
         self._models_initialized = False
+        self._ai_disabled = False
         self._init_lock = threading.Lock()
 
         # Pre-formatear prompts con el nombre del usuario
@@ -232,7 +233,8 @@ JSON:"""
             return
         try:
             self.client = genai.Client(api_key=GEMINI_API_KEY)
-            self.ia_habilitada = True
+            if not self._ai_disabled:
+                self.ia_habilitada = True
             logger.info("Gemini iniciado correctamente de forma stateless.")
         except Exception as exc:
             logger.error(f"Fallo al iniciar Gemini: {exc}")
@@ -251,7 +253,8 @@ JSON:"""
             # Ping ligero (~50ms) en lugar de ollama.list() que escanea todos los modelos
             import urllib.request
             urllib.request.urlopen("http://127.0.0.1:11434/api/version", timeout=2)
-            self.ollama_habilitado = True
+            if not self._ai_disabled:
+                self.ollama_habilitado = True
             logger.info("Ollama disponible localmente.")
         except Exception as exc:
             logger.warning(f"Ollama no disponible: {exc}")
@@ -274,17 +277,22 @@ JSON:"""
                 base_url="https://integrate.api.nvidia.com/v1",
                 api_key=NVIDIA_API_KEY
             )
-            self.nvidia_habilitado = True
+            if not self._ai_disabled:
+                self.nvidia_habilitado = True
             logger.info("NVIDIA API (DeepSeek) iniciada correctamente.")
         except Exception as exc:
             logger.error(f"Fallo al iniciar NVIDIA API: {exc}")
 
     def _ensure_models_initialized(self) -> bool:
         """Inicializa Gemini, Ollama y NVIDIA en paralelo (una sola vez)."""
+        if self._ai_disabled:
+            return False
         if self._models_initialized:
             return self.ia_habilitada or self.ollama_habilitado or self.nvidia_habilitado
 
         with self._init_lock:
+            if self._ai_disabled:
+                return False
             if self._models_initialized:
                 return self.ia_habilitada or self.ollama_habilitado or self.nvidia_habilitado
 
@@ -994,7 +1002,9 @@ CONVERSACIÓN:
 
     def disable_ai(self) -> None:
         """Desactiva todos los motores de IA."""
+        self._ai_disabled = True
         self.ia_habilitada = False
         self.ollama_habilitado = False
         self.nvidia_habilitado = False
+        self._models_initialized = True
         logger.info("IA desactivada explícitamente.")

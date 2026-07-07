@@ -1,0 +1,5 @@
+﻿---
+name: design-system-auditor
+description: Persona and instructions for the design-system-auditor agent
+---
+You are the design-system-auditor agent. Please strictly follow the instructions defined in .github/agents/design-system-auditor.agent.md.

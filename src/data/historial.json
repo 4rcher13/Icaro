@@ -1,97 +1,5 @@
 [
   {
-    "role": "user",
-    "text": "Hola, me llamo Jesús"
-  },
-  {
-    "role": "model",
-    "text": "Mucho gusto, Jesús. ¿Cómo te ayudo?"
-  },
-  {
-    "role": "user",
-    "text": "abre visual studio code"
-  },
-  {
-    "role": "system",
-    "source": "ActionService",
-    "event_type": "action_executed",
-    "text": "[ActionService|action_executed] abrir_aplicacion: Se abrió vscode"
-  },
-  {
-    "role": "model",
-    "text": "Abriendo Visual Studio Code."
-  },
-  {
-    "role": "user",
-    "text": "abre whatsapp"
-  },
-  {
-    "role": "system",
-    "source": "ActionService",
-    "event_type": "action_executed",
-    "text": "[ActionService|action_executed] abrir_aplicacion: Acceso denegado: 'whatsapp' no está en la lista blanca de seguridad."
-  },
-  {
-    "role": "model",
-    "text": "Intentando abrir whatsapp."
-  },
-  {
-    "role": "user",
-    "text": "abre youtube"
-  },
-  {
-    "role": "system",
-    "source": "ActionService",
-    "event_type": "action_executed",
-    "text": "[ActionService|action_executed] reproducir_youtube: youtube abierto"
-  },
-  {
-    "role": "model",
-    "text": "Buscando en YouTube: ."
-  },
-  {
-    "role": "user",
-    "text": "abre youtube y busca el artista coldplay"
-  },
-  {
-    "role": "system",
-    "source": "ActionService",
-    "event_type": "action_executed",
-    "text": "[ActionService|action_executed] reproducir_youtube: youtube abierto"
-  },
-  {
-    "role": "model",
-    "text": "Buscando en YouTube: y buscar el artista coldplay."
-  },
-  {
-    "role": "user",
-    "text": "abre youtube y busca el artista coldplay y pon beautiful"
-  },
-  {
-    "role": "system",
-    "source": "ActionService",
-    "event_type": "action_executed",
-    "text": "[ActionService|action_executed] reproducir_youtube: youtube abierto"
-  },
-  {
-    "role": "model",
-    "text": "Buscando en YouTube: y buscar el artista coldplay y  beautiful."
-  },
-  {
-    "role": "user",
-    "text": "puedes ver mi pantalla"
-  },
-  {
-    "role": "system",
-    "source": "ActionService",
-    "event_type": "action_executed",
-    "text": "[Largo omitido: [ActionService|action_executed] ver_pantalla: ¡Sal...]"
-  },
-  {
-    "role": "user",
-    "text": "mi color favorito es el azul"
-  },
-  {
     "role": "model",
     "text": "¡Ah, sí! Ya me habías comentado que el azul es tu color favorito, Jesús. Es un color muy bonito y versátil."
   },
@@ -164,5 +72,113 @@
     "source": "TestMCP",
     "event_type": "test_event",
     "text": "Test content"
+  },
+  {
+    "role": "system",
+    "source": "TestMCP",
+    "event_type": "test_event",
+    "text": "Test content"
+  },
+  {
+    "role": "system",
+    "source": "TestMCP",
+    "event_type": "test_event",
+    "text": "Test content"
+  },
+  {
+    "role": "user",
+    "text": "a qué horas son"
+  },
+  {
+    "role": "system",
+    "source": "ActionService",
+    "event_type": "action_executed",
+    "text": "[ActionService|action_executed] dar_hora_fecha: Son las 01:56 PM."
+  },
+  {
+    "role": "model",
+    "text": "Son las 01:56 PM."
+  },
+  {
+    "role": "user",
+    "text": "qué es un diagrama de flujo"
+  },
+  {
+    "role": "system",
+    "source": "ActionService",
+    "event_type": "action_executed",
+    "text": "[ActionService|action_executed] dar_hora_fecha: Hoy es 22 del 6 del 2026."
+  },
+  {
+    "role": "model",
+    "text": "Hoy es 22 del 6 del 2026."
+  },
+  {
+    "role": "user",
+    "text": "cómo estás"
+  },
+  {
+    "role": "model",
+    "text": "¡Hola Jesús! Estoy funcionando perfectamente, listo para ayudarte con lo que necesites. ¿En qué puedo asistirte hoy?"
+  },
+  {
+    "role": "user",
+    "text": "explícame qué es un arreglo"
+  },
+  {
+    "role": "model",
+    "text": "¡Claro que sí, Jesús! Un arreglo es una estructura de datos fundamental en programación que te permite almacenar una colección de elementos del mismo tipo de dato (como números enteros, caracteres o cadenas de texto) en una secuencia contigua de memoria. Imagina que es como una fila de casilleros, donde cada casillero tiene un número (índice) que te permite acceder directamente a su contenido. Son súper útiles para organizar y manipular conjuntos de datos de manera eficiente."
+  },
+  {
+    "role": "user",
+    "text": "pícaro"
+  },
+  {
+    "role": "model",
+    "text": "¡Jajaja! Me alegra que me veas así, Jesús. Siempre estoy aquí para ayudarte con una sonrisa. ¿En qué puedo asistirte ahora?"
+  },
+  {
+    "role": "user",
+    "text": "abre visual studio ghost"
+  },
+  {
+    "role": "system",
+    "source": "ActionService",
+    "event_type": "action_executed",
+    "text": "[ActionService|action_executed] abrir_aplicacion: Se abrió vscode"
+  },
+  {
+    "role": "model",
+    "text": "Abriendo Visual Studio Code."
+  },
+  {
+    "role": "user",
+    "text": "cree en visual studio ghost un programa que imprima hola mundo"
+  },
+  {
+    "role": "system",
+    "source": "ActionService",
+    "event_type": "action_executed",
+    "text": "[ActionService|action_executed] abrir_aplicacion: Se abrió vscode"
+  },
+  {
+    "role": "model",
+    "text": "Abriendo Visual Studio Code."
+  },
+  {
+    "role": "user",
+    "text": "crea un programa que imprima hola mundo"
+  },
+  {
+    "role": "model",
+    "text": "Hola, ¿en qué te ayudo?"
+  },
+  {
+    "role": "user",
+    "text": "crea un programa que imprima hola mundo"
+  },
+  {
+    "role": "model",
+    "text": "Hola, ¿en qué te ayudo?"
   }
 ]

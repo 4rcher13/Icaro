@@ -2,7 +2,7 @@
 description: Professional Windows Desktop Widget UI/UX Auditor
 name: Windows Widget Auditor
 tools: ['search', 'web', 'browser']
-model: Claude Haiku 4.5 (copilot)
+model: Auto (copilot)
 handoffs:
   - label: Generate Widget Implementation Plan
     agent: implementation-planner

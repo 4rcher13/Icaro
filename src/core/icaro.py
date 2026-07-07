@@ -7,7 +7,6 @@ from enum import Enum, auto
 from typing import Optional
 
 from ..config.settings import WAKE_WORD
-from .vector_memory import _load_embedding_model_background
 from .memory_manager import MemoryManager
 from .shared_memory import set_shared_memory
 from .command_processor import CommandProcessor
@@ -67,8 +66,7 @@ class Icaro:
         self.inactivity_timeout = inactivity_timeout
         self.last_interaction_time = time.time()
 
-        # Iniciar carga pesada del modelo de embeddings en background
-        threading.Thread(target=_load_embedding_model_background, daemon=True, name="EmbeddingsLoader").start()
+        self._sleeping_logged = False
 
         # 2. Servicios
         self.memory = memory_manager or MemoryManager()
@@ -123,6 +121,8 @@ class Icaro:
         if self._state == new_state and not transcript and not response:
             return
         self._state = new_state
+        if new_state != IcaroState.SLEEPING:
+            self._sleeping_logged = False
         self._emit_state(transcript, response)
         bus.publish(EventType.STATE_CHANGED, {"state": new_state.name, "transcript": transcript, "response": response})
 
@@ -182,6 +182,10 @@ class Icaro:
                 self.ai.ia_habilitada = False
             if hasattr(self.ai, 'ollama_habilitado'):
                 self.ai.ollama_habilitado = False
+            if hasattr(self.ai, 'nvidia_habilitado'):
+                self.ai.nvidia_habilitado = False
+            if hasattr(self.ai, '_models_initialized'):
+                self.ai._models_initialized = True
         logger.info("Modo --no-ai activo: solo comandos locales.")
 
     # -------------------- Lógica de inactividad --------------------
@@ -204,17 +208,17 @@ class Icaro:
                 if not historial:
                     return
                 
+                # Filtrar y contar mensajes reales de usuario/modelo
+                conversacion = [m for m in historial if m.get("role") in ("user", "model")]
+                if len(conversacion) < 2:
+                    logger.info("Historial demasiado corto para resumir.")
+                    return
+                
                 logger.info("Generando resumen de sesión en background...")
-                resumen = self.ai.summarize_session(historial)
+                resumen = self._summarize_history(historial)
                 if resumen:
                     logger.info(f"Sesión resumida con éxito: {resumen}")
-                    if hasattr(self.memory, 'vector_db') and self.memory.vector_db:
-                        # Guardamos con un rol especial o 'model' para indicar que es conocimiento resumido
-                        self.memory.vector_db.add_memory(
-                            role="model",
-                            text=f"Resumen de conversación previa: {resumen}",
-                            intent="resumen_sesion"
-                        )
+                    self._save_session_summary(resumen, wait=wait)
                 else:
                     logger.info("No se generó resumen de sesión (nada relevante o vacío).")
             except Exception as e:
@@ -225,6 +229,39 @@ class Icaro:
         if wait:
             # Esperar a que finalice la llamada (ej. en apagado), con un timeout de 4 segundos
             t.join(timeout=4.0)
+
+    def _summarize_history(self, historial: list) -> Optional[str]:
+        """Pide al servicio de IA un resumen si expone esa capacidad."""
+        summarize_session = getattr(self.ai, "summarize_session", None)
+        if not callable(summarize_session):
+            logger.debug("El servicio AI no implementa summarize_session(); se omite el resumen.")
+            return None
+        return summarize_session(historial)
+
+    def _save_session_summary(self, resumen: str, wait: bool = False) -> None:
+        """Guarda el resumen en memoria vectorial cuando está disponible."""
+        vector_db = getattr(self.memory, "vector_db", None)
+        if not vector_db:
+            return
+        add_memory = getattr(vector_db, "add_memory", None)
+        if not callable(add_memory):
+            return
+
+        import inspect
+        sig = inspect.signature(add_memory)
+        if "wait" in sig.parameters:
+            add_memory(
+                role="model",
+                text=f"Resumen de conversación previa: {resumen}",
+                intent="resumen_sesion",
+                wait=wait
+            )
+        else:
+            add_memory(
+                role="model",
+                text=f"Resumen de conversación previa: {resumen}",
+                intent="resumen_sesion"
+            )
 
     # -------------------- Ciclo de procesamiento de un comando --------------------
     def _save_memory_async(self, role: str, text: str) -> None:
@@ -264,6 +301,22 @@ class Icaro:
     def detener(self) -> None:
         self.running = False
 
+    def _listen_for_command(self) -> str:
+        """Escucha audio manteniendo coherente el estado actual."""
+        if self._state == IcaroState.SLEEPING:
+            if not getattr(self, "_sleeping_logged", False):
+                logger.info("En reposo. (Di 'Ícaro' para activarme)")
+                self._sleeping_logged = True
+        elif self._state != IcaroState.LISTENING:
+            self._transition_to(IcaroState.LISTENING)
+        return self.audio.escuchar()
+
+    def _shutdown_audio(self) -> None:
+        """Libera recursos de audio si el servicio soporta apagado explícito."""
+        shutdown = getattr(self.audio, "shutdown", None)
+        if callable(shutdown):
+            shutdown()
+
     def iniciar(self) -> None:
         """Bucle principal con máquina de estados explícita."""
         # Mensaje de bienvenida (solo si no silent)
@@ -279,16 +332,7 @@ class Icaro:
         try:
             while self.running:
                 try:
-                    # --- Determinar en qué estado estamos ---
-                    if self._state == IcaroState.SLEEPING:
-                        logger.debug("En reposo. (Di 'Ícaro' para activarme)")   # debug bajo
-                        # No emitimos SLEEPING repetitivo porque _transition_to ya lo hizo
-                        command = self.audio.escuchar()
-                    else:  # LISTENING, THINKING o SPEAKING? En realidad solo debería estar LISTENING aquí
-                        # Aseguramos que estamos en LISTENING antes de escuchar
-                        if self._state != IcaroState.LISTENING:
-                            self._transition_to(IcaroState.LISTENING)
-                        command = self.audio.escuchar()
+                    command = self._listen_for_command()
 
                     # --- Sin audio detectado ---
                     if not command:
@@ -344,7 +388,6 @@ class Icaro:
             logger.info("Apagado forzado por el usuario (Ctrl+C).")
             self.detener()
         finally:
-            if hasattr(self.audio, "shutdown"):
-                self.audio.shutdown()
+            self._shutdown_audio()
             self.telemetry.close()
             logger.info("Sistemas fuera. Apagado")
