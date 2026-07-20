@@ -3,6 +3,8 @@ import time
 import threading
 import logging
 import queue
+import collections
+import ctypes
 from pathlib import Path
 from typing import Optional, Callable
 
@@ -11,6 +13,64 @@ try:
     _NUMPY_AVAILABLE = True
 except ImportError:
     _NUMPY_AVAILABLE = False
+
+# Ctypes Structs y Enums para icaro_audio.dll
+class AudioStats(ctypes.Structure):
+    _fields_ = [
+        ("droppedFrames", ctypes.c_int),
+        ("overruns", ctypes.c_int),
+        ("underruns", ctypes.c_int),
+        ("latencyMs", ctypes.c_float),
+        ("bufferUsage", ctypes.c_float),
+        ("sampleRate", ctypes.c_int)
+    ]
+
+# Resultados de Inicialización
+AUDIO_INIT_OK = 0
+AUDIO_INIT_DEVICE_NOT_FOUND = 1
+AUDIO_INIT_ACCESS_DENIED = 2
+AUDIO_INIT_UNSUPPORTED_FORMAT = 3
+AUDIO_INIT_FAILED = 4
+
+# Resultados de Lectura
+AUDIO_READ_OK = 0
+AUDIO_READ_TIMEOUT = 1
+AUDIO_READ_STOPPED = 2
+AUDIO_READ_ERROR = 3
+
+_DLL_PATH = Path(__file__).resolve().parent.parent / "audio" / "icaro_audio.dll"
+_dll = None
+DLL_AVAILABLE = False
+
+if os.path.exists(_DLL_PATH):
+    try:
+        _dll = ctypes.CDLL(str(_DLL_PATH))
+        _dll.IcaroAudio_Start.argtypes = []
+        _dll.IcaroAudio_Start.restype = ctypes.c_int
+        
+        _dll.IcaroAudio_Stop.argtypes = []
+        _dll.IcaroAudio_Stop.restype = None
+        
+        _dll.IcaroAudio_Read.argtypes = [
+            ctypes.POINTER(ctypes.c_int16),
+            ctypes.c_int,
+            ctypes.c_int
+        ]
+        _dll.IcaroAudio_Read.restype = ctypes.c_int
+        
+        _dll.IcaroAudio_GetStats.argtypes = [ctypes.POINTER(AudioStats)]
+        _dll.IcaroAudio_GetStats.restype = None
+
+        if hasattr(_dll, "IcaroAudio_GetDeviceName"):
+            _dll.IcaroAudio_GetDeviceName.argtypes = []
+            _dll.IcaroAudio_GetDeviceName.restype = ctypes.c_wchar_p
+        
+        DLL_AVAILABLE = True
+        logging.info("icaro_audio.dll cargado con éxito. WASAPI activo.")
+    except Exception as e:
+        logging.warning(f"No se pudo cargar icaro_audio.dll: {e}. Fallback a sounddevice.")
+else:
+    logging.info("icaro_audio.dll no encontrado. Se usará el backend de Python.")
 
 import pyttsx3
 import speech_recognition as sr
@@ -79,6 +139,15 @@ class AudioService:
         self.on_feedback = on_feedback
         
         self.vad = webrtcvad.Vad(VAD_AGGRESSIVENESS) if SD_AVAILABLE else None
+        
+        # Inicializar Silero VAD si la DLL de captura está disponible
+        self.silero_vad = None
+        if DLL_AVAILABLE:
+            try:
+                from .silero_vad import SileroVAD
+                self.silero_vad = SileroVAD()
+            except Exception as e:
+                logging.warning(f"No se pudo inicializar Silero VAD: {e}. Desactivando DLL.")
         
         # TTS worker
         self._tts_queue: queue.Queue = queue.Queue()
@@ -321,6 +390,156 @@ class AudioService:
         except Exception:
             return ""
 
+    def escuchar_wasapi(self, timeout_silencio: float, limite_segundos: int) -> str:
+        """
+        Escucha utilizando WASAPI (C++ DLL) y Silero VAD ONNX.
+        Consumo de CPU de ~0% en reposo gracias al bloqueo de la DLL liberando el GIL.
+        """
+        if not DLL_AVAILABLE or self.silero_vad is None:
+            return ""
+            
+        logger.debug("Escuchando con backend WASAPI + Silero VAD...")
+        
+        # Iniciar captura nativa en C++
+        init_res = _dll.IcaroAudio_Start()
+        if init_res != AUDIO_INIT_OK:
+            error_msgs = {
+                AUDIO_INIT_DEVICE_NOT_FOUND: "Dispositivo de entrada de audio no encontrado.",
+                AUDIO_INIT_ACCESS_DENIED: "Permiso de acceso al micrófono denegado.",
+                AUDIO_INIT_UNSUPPORTED_FORMAT: "Formato de audio del sistema no soportado por el resampler.",
+                AUDIO_INIT_FAILED: "Error general al inicializar WASAPI."
+            }
+            err_msg = error_msgs.get(init_res, f"Error desconocido: {init_res}")
+            logger.error(f"Fallo al iniciar WASAPI: {err_msg}")
+            self._notificar_usuario(f"Error de audio: {err_msg}")
+            return ""
+
+        device_name = (
+            _dll.IcaroAudio_GetDeviceName()
+            if hasattr(_dll, "IcaroAudio_GetDeviceName")
+            else "unknown"
+        )
+        logger.info(
+            "WASAPI iniciado: dispositivo=%r pid=%s hilo=%s",
+            device_name,
+            os.getpid(),
+            threading.get_ident(),
+        )
+            
+        self.silero_vad.reset()
+        
+        # Frame size de 1536 muestras (96ms a 16kHz)
+        frame_size = 1536
+        read_buffer = (ctypes.c_int16 * frame_size)()
+        
+        # Pre-buffer de 500ms para no recortar la 'I' de 'Icaro'
+        # 500ms a 16000Hz = 8000 muestras. 5 frames de 1536 = 7680 muestras (480ms).
+        pre_buffer_frames = collections.deque(maxlen=5)
+        
+        triggered = False
+        speech_frames = []
+        silence_frames_count = 0
+        
+        frame_duration_sec = frame_size / AUDIO_RATE
+        max_silence_frames = int(timeout_silencio / frame_duration_sec)
+        max_total_frames = int(limite_segundos / frame_duration_sec)
+        total_frames_count = 0
+        consecutive_timeouts = 0
+        captured_samples = 0
+        nonzero_samples = 0
+        peak_sample = 0
+        sum_squares = 0.0
+        
+        try:
+            while True:
+                # Leer desde la DLL. Bloquea hasta 1000ms.
+                # Al liberar el GIL, Python no consume CPU durante la espera.
+                read_res = _dll.IcaroAudio_Read(read_buffer, frame_size, 1000)
+                
+                if read_res == AUDIO_READ_STOPPED:
+                    logger.debug("Captura de audio detenida.")
+                    break
+                elif read_res == AUDIO_READ_TIMEOUT:
+                    consecutive_timeouts += 1
+                    logger.warning("Timeout leyendo de la DLL WASAPI.")
+                    if consecutive_timeouts >= 3:
+                        logger.error("Demasiados timeouts consecutivos. Abortando escucha.")
+                        break
+                    continue
+                elif read_res == AUDIO_READ_ERROR:
+                    logger.error("Error de lectura en WASAPI.")
+                    break
+                    
+                consecutive_timeouts = 0
+                frame_np = np.frombuffer(read_buffer, dtype=np.int16).copy()
+                captured_samples += frame_np.size
+                nonzero_samples += int(np.count_nonzero(frame_np))
+                peak_sample = max(peak_sample, int(np.max(np.abs(frame_np))))
+                sum_squares += float(np.dot(frame_np.astype(np.float32), frame_np))
+                
+                # Obtener probabilidad de habla
+                prob = self.silero_vad.is_speech(frame_np)
+                
+                if not triggered:
+                    if prob > 0.5:
+                        triggered = True
+                        for f in pre_buffer_frames:
+                            speech_frames.append(f)
+                        speech_frames.append(frame_np)
+                        logger.debug("Voz activa detectada por Silero VAD.")
+                    else:
+                        pre_buffer_frames.append(frame_np)
+                else:
+                    speech_frames.append(frame_np)
+                    if prob < 0.35: # Histéresis
+                        silence_frames_count += 1
+                        if silence_frames_count > max_silence_frames:
+                            logger.debug("Fin de voz detectado por Silero VAD.")
+                            break
+                    else:
+                        silence_frames_count = 0
+                        
+                total_frames_count += 1
+                if total_frames_count > max_total_frames:
+                    logger.debug("Límite de tiempo alcanzado.")
+                    break
+                    
+            # Detener captura y liberar recursos en C++
+            _dll.IcaroAudio_Stop()
+            
+            # Obtener y mostrar estadísticas de audio para diagnóstico
+            stats = AudioStats()
+            _dll.IcaroAudio_GetStats(ctypes.byref(stats))
+            logger.debug(
+                f"AudioStats -> Pérdidas: {stats.droppedFrames}, Sobrecargas: {stats.overruns}, "
+                f"Subcargas: {stats.underruns}, Latencia: {stats.latencyMs:.1f}ms, "
+                f"Uso Buffer: {stats.bufferUsage:.1f}%, Frames: {total_frames_count}, "
+                f"Muestras: {captured_samples}, NoCero: {nonzero_samples}, "
+                f"RMS: {(sum_squares / captured_samples) ** 0.5 if captured_samples else 0.0:.1f}, "
+                f"Peak: {peak_sample}"
+            )
+            
+            if not speech_frames:
+                return ""
+                
+            # Reconstruir audio completo
+            raw_audio = b''.join(f.tobytes() for f in speech_frames)
+            audio_data = sr.AudioData(raw_audio, AUDIO_RATE, 2)
+            
+            comando = self.recognizer.recognize_google(audio_data, language="es-ES")
+            comando = comando.lower().strip()
+            logger.info(f"Usuario (WASAPI): '{comando}'")
+            return comando
+            
+        except sr.UnknownValueError:
+            return ""
+        except Exception as e:
+            logger.error(f"Error en bucle de escucha WASAPI: {e}")
+            return ""
+        finally:
+            if _dll:
+                _dll.IcaroAudio_Stop()
+
     def escuchar(
         self,
         timeout_silencio: Optional[float] = None,
@@ -333,12 +552,29 @@ class AudioService:
             limite_segundos = kwargs["limite_segundo"]
         ts = timeout_silencio if timeout_silencio is not None else TIMEOUT_SILENCIO
         ls = limite_segundos if limite_segundos is not None else LIMITE_SEGUNDOS
+        
+        # 1. Backend optimizado: WASAPI (C++ DLL) + Silero VAD
+        #    Si la DLL está disponible, se usa en exclusiva para evitar
+        #    abrir el micrófono desde dos backends al mismo tiempo.
+        if DLL_AVAILABLE and self.silero_vad is not None:
+            return self.escuchar_wasapi(ts, ls)
+                
+        # 2. Fallback a WebRTC VAD + sounddevice
         if SD_AVAILABLE and self.vad:
             return self.escuchar_vad()
+            
+        # 3. Fallback final a speech_recognition legacy
         return self.escuchar_legacy(timeout_silencio=ts, limite_segundos=ls)
     
     def shutdown(self) -> None:
-        """Detiene el TTS worker y libera recursos."""
+        """Detiene el TTS worker, la captura WASAPI y libera recursos."""
+        # 1. Detener captura de audio nativa (desbloquea cualquier Read() pendiente)
+        if DLL_AVAILABLE and _dll:
+            try:
+                _dll.IcaroAudio_Stop()
+            except Exception as e:
+                logger.warning(f"Error al detener IcaroAudio: {e}")
+        # 2. Detener TTS worker
         self._tts_queue.put(None)
         if self._tts_worker_thread.is_alive():
             self._tts_worker_thread.join(timeout=5)

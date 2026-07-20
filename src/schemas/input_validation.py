@@ -1,6 +1,6 @@
-﻿"""Validación de entrada de usuario general"""
+"""Validación de entrada de usuario general"""
 
-from pydantic import BaseModel, Field, validator
+from pydantic import Field, field_validator
 from typing import Optional, List
 from .base import BaseSchema
 
@@ -11,8 +11,9 @@ class QueryInput(BaseSchema):
     limit: int = Field(default=10, ge=1, le=100, description="Límite de resultados")
     offset: int = Field(default=0, ge=0, description="Offset para paginación")
     
-    @validator('query')
-    def sanitize_query(cls, v):
+    @field_validator('query')
+    @classmethod
+    def sanitize_query(cls, v: str) -> str:
         """Sanitiza entrada de usuario"""
         dangerous_patterns = ['<', '>', '"', "'", ';', '--', '/*', '*/', 'DROP', 'DELETE', 'INSERT']
         v_upper = v.upper()
@@ -26,8 +27,9 @@ class CommandInput(BaseSchema):
     command: str = Field(..., min_length=1, max_length=500, description="Comando a ejecutar")
     args: Optional[List[str]] = Field(default_factory=list, description="Argumentos del comando")
     
-    @validator('command')
-    def validate_command(cls, v):
+    @field_validator('command')
+    @classmethod
+    def validate_command(cls, v: str) -> str:
         """Valida comando"""
         forbidden = ['rm', 'del', 'format', 'fdisk', 'dd', '>', '|', ';']
         for cmd in forbidden:
@@ -42,8 +44,9 @@ class APIRequest(BaseSchema):
     headers: Optional[dict] = Field(default_factory=dict)
     body: Optional[dict] = None
     
-    @validator('endpoint')
-    def validate_endpoint(cls, v):
+    @field_validator('endpoint')
+    @classmethod
+    def validate_endpoint(cls, v: str) -> str:
         """Valida endpoint"""
         if not v.startswith('/'):
             v = '/' + v

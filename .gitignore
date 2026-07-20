@@ -42,3 +42,10 @@ data/chroma_db/
 *.swo
 *~
 .DS_Store
+
+# Audio nativo compilado (generar con src/audio/compile_audio.bat)
+src/audio/*.dll
+src/audio/*.o
+
+# Modelos ONNX locales (descargar de forma manual, ver README)
+src/models/*.onnx

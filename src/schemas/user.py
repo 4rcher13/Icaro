@@ -1,6 +1,6 @@
-﻿"""Esquemas de validación para usuarios"""
+"""Esquemas de validación para usuarios"""
 
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import EmailStr, Field, field_validator
 from typing import Optional
 from enum import Enum
 from datetime import datetime
@@ -17,8 +17,9 @@ class UserCreate(BaseSchema):
     password: str = Field(..., min_length=8, max_length=128, description="Contraseña (mín 8 caracteres)")
     full_name: str = Field(..., min_length=1, max_length=255, description="Nombre completo")
     
-    @validator('password')
-    def validate_password(cls, v):
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
         """Valida fortaleza de contraseña"""
         if not any(c.isupper() for c in v):
             raise ValueError('Debe contener al menos una mayúscula')
