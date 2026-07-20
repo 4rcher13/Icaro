@@ -1,4 +1,3 @@
-import os
 import re
 from pathlib import Path
 
@@ -8,7 +7,7 @@ CURSOR_RULES_DIR = PROJECT_ROOT / ".cursor" / "rules"
 SKILLS_DIR = PROJECT_ROOT / ".agents" / "skills"
 AGENTS_MD_PATH = PROJECT_ROOT / "AGENTS.md"
 
-def get_expected_agents_from_manifest():
+def get_expected_agents_from_manifest() -> list[str]:
     """Parse AGENTS.md to get the list of expected agents."""
     if not AGENTS_MD_PATH.exists():
         return []
@@ -33,7 +32,8 @@ def get_expected_agents_from_manifest():
             
     return agents
 
-def get_agent_files():
+def get_agent_files() -> list[Path]:
+    """Get all agent files in the AGENTS_DIR."""
     if not AGENTS_DIR.exists():
         return []
     return list(AGENTS_DIR.glob("*.agent.md"))

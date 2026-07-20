@@ -83,7 +83,7 @@ if __name__ == "__main__":
     window_ref: list[Optional[webview.Window]] = [None]
     api = Api(window_ref)
 
-    window = webview.create_window(
+    window = webview.create_window( #
         "Ícaro",
         url=html_path,
         width=400,
