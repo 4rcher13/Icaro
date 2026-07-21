@@ -4,9 +4,7 @@ Languages:
 - English (default)
 - Español: [README.es.md](README.es.md)
 
-Ícaro is a state-of-the-art, modular, voice-activated AI assistant designed to run locally on Windows (and other platforms). It features a robust state-machine architecture, real-time telemetry, semantic memory (RAG) powered by ChromaDB, dynamic command execution, and deep integration with the **Model Context Protocol (MCP)**.
-
----
+Ícaro is a state-of-the-art, modular, voice-activated AI assistant designed to run locally on Windows. It features a robust state-machine architecture, real-time telemetry, semantic memory (RAG) powered by ChromaDB, dynamic command execution, and deep integration with the Model Context Protocol (MCP).
 
 ## Key Features
 
@@ -58,17 +56,19 @@ graph TD
 ## Installation
 
 1. **Clone the Repository**:
-   ```bash
+
+```bash
    git clone https://github.com/4rcher13/Asistente-IA.git
    cd Asistente-IA
-   ```
+```
 
 2. **Create and Activate a Virtual Environment**:
+
    - **Windows (PowerShell)**:
-     ```powershell
+      ```powershell
      python -m venv .venv
      .\.venv\Scripts\Activate.ps1
-     ```
+      ```
    - **Linux / macOS**:
      ```bash
      python3 -m venv .venv
@@ -98,10 +98,71 @@ graph TD
 
 ---
 
-##  Running the Assistant
+## OVERVIEW WITH CODEX
+
+Codex was used throughout the project lifecycle as an engineering collaborator rather than a simple code generator. It participated in system architecture design, iterative debugging, code refactoring, C++ audio service integration, prompt engineering, Git workflow management, and the implementation of new AI capabilities.
+
+## Areas of Application
+
+- **System Architecture Design**: Codex assisted in designing the overall system structure of Icaro, defining module boundaries, component responsibilities, and the communication flow between the local LLM backend, the RAG pipeline, and the desktop interface.
+
+- **Refactoring**: Iterative refactoring sessions with Codex helped clean up early prototypes, improving separation of concerns, reducing coupling between modules, and making the codebase more maintainable as the project grew in complexity.
+
+- **Code Generation**: Codex was used to generate boilerplate, utility functions, API wrappers, and integration scaffolding, significantly accelerating development speed across Python and C++ components.
+
+- **Optimization**: Performance-critical paths, including embedding generation, audio buffering, and LLM inference calls, were analyzed and optimized with Codex guidance, focusing on latency reduction and resource efficiency.
+
+- **Debugging**: Complex bugs across the audio pipeline, LLM response handling, and MCP integration were diagnosed collaboratively with Codex, helping trace root causes and suggest targeted fixes.
+
+- **Agent Design**: The design of Icaro's AI agent behavior, including tool selection logic, memory retrieval strategies, and context management, was developed iteratively with Codex input on prompt structure and agent orchestration patterns.
+
+- **C++ / Python Integration**: Codex facilitated the integration between the C++ audio service and the Python application core, assisting with interface design, data serialization, and cross-language communication patterns.
+
+- **Project Organization**: Codex helped structure the repository layout, enforce consistent naming conventions, and maintain clean module hierarchies as the project scaled.
+
+- **Testing**: Test strategies, unit test scaffolding, and edge-case identification were developed with Codex assistance to improve reliability across the project's core features.
+
+## Features
+
+### Planned & In Progress
+
+- **Optimized Audio I/O**  
+  Redesigned audio input and output pipeline to minimize latency and reduce resource consumption, enabling smoother real-time voice interaction.
+
+- **Efficient Local AI Memory Management**  
+  Smarter memory allocation and context window management when running LLMs locally, ensuring stable performance even on consumer hardware with limited VRAM.
+
+- **Long-Term Memory**  
+  Persistent memory system that allows Icaro to retain context across sessions, remembering past conversations, user preferences, and recurring topics over time.
+
+- **MCP (Model Context Protocol)**  
+  Full integration with MCP to enable standardized tool use, context sharing, and interoperability with external services and data sources.
+
+- **VS Code Plugin – Live Coding Assistant**  
+  A plugin that connects Icaro directly to VS Code, allowing it to understand what the user is currently coding. Icaro can then provide real-time voice recommendations, suggestions, and feedback without interrupting the development workflow.
+
+## Limitations
+
+### Current Constraints
+
+- **VAD (Voice Activity Detection)**  
+  Still under active development. Detection accuracy and reliability are not yet production-ready.
+
+- **Windows Only**  
+  The project has only been tested on Windows. Linux and macOS support has not been verified and may require additional configuration.
+
+- **Experimental Features**  
+  Several capabilities are still experimental and may behave unexpectedly or change significantly in future versions.
+
+- **C++ Refactoring**  
+  An attempt was made to use Codex to refactor the C++ audio service codebase. While the effort provided useful insights, the refactoring was not ultimately adopted. The C++ component remains in its original form pending a more structured approach.
+
+## Running the Assistant
 
 ### Quick Start (Windows)
+
 Double-click `run.bat` or execute it in your terminal. This will:
+
 1. Spin up the visual UI status widget overlay in the background.
 2. Launch Ícaro in your console.
 
@@ -110,17 +171,20 @@ Double-click `run.bat` or execute it in your terminal. This will:
 ```
 
 Alternatively, you can run the PowerShell script:
+
 ```powershell
 .\run.ps1
 ```
 
 ### Manual Launch
+
 To start the assistant directly without the widget:
 ```bash
 python -m src.main
 ```
 
 Available CLI Arguments:
+
 - `--debug`: Activates `DEBUG` level logs in the console.
 - `--silent`: Disables startup voice greeting.
 - `--no-ai`: Disables all AI services, processing only local hardcoded commands.
@@ -150,6 +214,7 @@ Available CLI Arguments:
 ## Testing & Quality Assurance
 
 ### Run Unit and Integration Tests
+
 ```bash
 python -Xutf8 -m pytest tests/ -v --tb=short
 ```
@@ -160,6 +225,7 @@ Or use the helper script:
 ```
 
 ### Run Security Vulnerability Scanning
+
 To inspect the codebase for secrets leak, SQL injection vectors, or insecure code patterns:
 ```powershell
 .\security_scan.ps1
